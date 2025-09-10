@@ -1,52 +1,46 @@
-import { adaptReviewToClient } from '../adapter/reviewAdapter.js';
-import ApiError from '../error/ApiError.js';
-import Review from '../models/review.js'
-import User from '../models/user.js';
+import { adaptReviewToClient } from "../adapters/reviewAdapter.js";
+import ApiError from "../error/ApiError.js";
+import { Review } from "../models/review.js";
+import { User } from "../models/user.js";
 
-async function createReview(req, res, next) {
-    try {
-        const { comment, rating } = req.body;
-        const offerId = req.params.offerId;
-        const userId = req.user.id;
-        
-        if (!offerId || !comment || !rating) {
-            return next(ApiError.badRequest('not enough data for comment: comment or rating or offerId'));
-        }
+const addReview = async (req, res, next) => {
+	try {
+		const { comment, rating } = req.body;
+		const offerId = req.params.offerId;
+		const userId = 1;
 
-        if (comment.length < 5 || comment.length > 1024) {
-            return next(ApiError.badRequest('text must be between 5 and 1024'));
-        }
+		if (!comment || !rating || !offerId) {
+			return next(ApiError.badRequest("Не хватает данных для комментария"));
+		}
 
-        if (rating < 1 || rating > 5) {
-            return next(ApiError.badRequest('rating must be a number between 1 and 5'));
-        }
+		const review = await Review.create({
+			text: comment,
+			rating,
+			authorId: userId,
+			OfferId: offerId,
+		});
 
-        const review = await Review.create({
-            text: comment,
-            rating,
-            OfferId: offerId,
-            authorId: userId
-        });
+		res.status(201).json(review);
+	} catch (error) {
+		console.log(error);
+		next(ApiError.badRequest("Ошибка при добавлении данных"));
+	}
+};
+export { addReview };
 
-        return res.status(201).json(review);
-    } catch (error) {
-        next(ApiError.badRequest('failed to add the comment: ' + error.message))
-    }
-}
-
-async function getReviewsByOfferId(req, res, next) {
-    try {
-        const reviews = await Review.findAll({
-            where: { OfferId: req.params.offerId },
-            include: { model: User, as: 'author' },
-            order:  [['publishDate', 'DESC']]
-        });
-
-        const adaptedReviews = reviews.map(adaptReviewToClient);
-        res.json(adaptedReviews);
-    } catch (error) {
-        next(ApiError.internal('failed to receive comments: ' + error))
-    }
+const getReviewsByOfferId = async (req, res, next) => {
+	try {
+		const reviews = await Review.findAll({
+			where: { OfferId: req.params.offerId },
+			include: { model: User, as: "author" },
+			order: [["publishDate", "DESC"]],
+		});
+		const adaptedReviews = reviews.map(adaptReviewToClient);
+		res.json(adaptedReviews);
+	} catch (error) {
+		console.error(error);
+		next(ApiError.internal("Ошибка при получении комментариев"));
+	}
 };
 
-export { createReview, getReviewsByOfferId };
+export { getReviewsByOfferId };
